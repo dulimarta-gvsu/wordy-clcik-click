@@ -54,7 +54,6 @@ class AppViewModel : ViewModel() {
     private val _wordBuiltSofar = MutableStateFlow<Map<String, Int>>(emptyMap())
     val wordBuiltSofar = _wordBuiltSofar.asStateFlow()
 
-
     init {
         selectRandomLetters()
     }

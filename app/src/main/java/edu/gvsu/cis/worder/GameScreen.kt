@@ -88,7 +88,7 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: AppViewModel) {
 }
 
 @Composable
-fun BigLetter(modifier: Modifier = Modifier, letter: Char?, cellSize: Dp = 48.dp) {
+fun BigLetter(modifier: Modifier = Modifier, letter: Letter?, cellSize: Dp = 48.dp) {
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
@@ -100,7 +100,7 @@ fun BigLetter(modifier: Modifier = Modifier, letter: Char?, cellSize: Dp = 48.dp
             )
     ) {
         Text(
-            letter?.toString() ?: "",
+            letter?.text?.toString() ?: "",
             fontSize = (cellSize * 0.7f).value.sp,
             textAlign = TextAlign.Center
         )
@@ -227,7 +227,7 @@ fun LetterGroup(
                 // Can't use only position as key: reordering won't work correctly
                 // Can't use only character as key: the list may contain duplicate letters
                 itemsIndexed(mutLetters, key = { pos, item -> "$pos-" + (item?.text ?: "#") }) { pos, lx ->
-                    BigLetter(letter = lx?.text, cellSize = letterSize.coerceAtMost(80.dp),
+                    BigLetter(letter = lx, cellSize = letterSize.coerceAtMost(80.dp),
                         modifier = Modifier.dragAndDropSource {
                         detectTapGestures(onLongPress = {
                             startDragIndex = pos

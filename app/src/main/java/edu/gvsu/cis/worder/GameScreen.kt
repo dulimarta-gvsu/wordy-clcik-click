@@ -88,24 +88,63 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: AppViewModel) {
 }
 
 @Composable
-fun BigLetter(modifier: Modifier = Modifier, letter: Letter?, cellSize: Dp = 48.dp) {
+fun BigLetter(
+    modifier: Modifier = Modifier,
+    letter: Letter?,
+    cellSize: Dp = 48.dp
+) {
     Box(
-        contentAlignment = Alignment.Center,
         modifier = modifier
             .size(cellSize)
-            .border(width = 1.dp, color = Color.Black, shape = RoundedCornerShape(8.dp))
+            .border(1.dp, Color.Black, RoundedCornerShape(8.dp))
             .background(
                 if (letter == null) Color.Transparent else Color.Green,
-                shape = RoundedCornerShape(8.dp)
+                RoundedCornerShape(8.dp)
             )
     ) {
-        Text(
-            letter?.text?.toString() ?: "",
-            fontSize = (cellSize * 0.7f).value.sp,
-            textAlign = TextAlign.Center
-        )
-    }
 
+        // Main letter (center)
+        if (letter != null) {
+            Text(
+                text = letter.text.toString(),
+                fontSize = (cellSize * 0.6f).value.sp,
+                modifier = Modifier.align(Alignment.Center)
+            )
+
+            // Point (bottom right)
+            if (letter.point > 0) {
+                Text(
+                    text = letter.point.toString(),
+                    fontSize = (cellSize * 0.18f).value.sp,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(4.dp)
+                )
+            }
+
+            // Word multiplier (top left)
+            if (letter.wordMl > 1) {
+                Text(
+                    text = "${letter.wordMl}W",
+                    fontSize = (cellSize * 0.18f).value.sp,
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(4.dp)
+                )
+            }
+
+            // Letter multiplier (top right)
+            if (letter.letterMl > 1) {
+                Text(
+                    text = "${letter.letterMl}L",
+                    fontSize = (cellSize * 0.18f).value.sp,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(4.dp)
+                )
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)

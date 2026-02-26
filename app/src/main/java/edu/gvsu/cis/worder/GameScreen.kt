@@ -62,6 +62,7 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: AppViewModel) {
         Button(
             modifier = Modifier.align(Alignment.TopCenter),
             onClick = {
+                viewModel.calculateTotalScore()
                 viewModel.selectRandomLetters()
             },
         ) {
@@ -72,11 +73,14 @@ fun GameScreen(modifier: Modifier = Modifier, viewModel: AppViewModel) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            Text("Center Box")
             LetterGroup(letters = arrangedLetters, groupId = "Top") {
+                println("Center box rearrange $it")
                 viewModel.rearrangeLetters(Origin.CenterBox, it.filterNotNull() )
             }
+            Text("Stock")
             LetterGroup(letters = stockLetters, groupId = "Bottom") {
-                println("Bottom box rearrange $it")
+//                println("Bottom box rearrange $it")
                 viewModel.rearrangeLetters(Origin.Stock, it.filterNotNull())
             }
         }
@@ -107,7 +111,8 @@ fun BigLetter(modifier: Modifier = Modifier, letter: Char?, cellSize: Dp = 48.dp
 @OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun LetterGroup(
-    modifier: Modifier = Modifier, groupId: String,
+    modifier: Modifier = Modifier,
+    groupId: String,
     letters: List<Letter?>,
     onRearranged: (List<Letter?>) -> Unit
 ) {
@@ -142,10 +147,11 @@ fun LetterGroup(
         object : DragAndDropTarget {
             override fun onDrop(event: DragAndDropEvent): Boolean {
                 val ev = event.toAndroidDragEvent()
-                val dropData = ev.clipData.getItemAt(0).text
                 // Decode the string payload (text and point separated by '/')
-                val (text,point) = dropData.split("/")
-                val letterObject = Letter(text.first(),point.toInt())
+                val dropData = ev.clipData.getItemAt(0).text.toString()
+                val (t, p, lml, wml) = dropData.split("/")
+                val letterObject = Letter(t.first(), p.toInt(), lml.toInt(), wml.toInt())
+
                 // Drop the letter to the empty cell
                 if (emptyCellIndex != null) {
                     mutLetters[emptyCellIndex!!] = letterObject
@@ -233,7 +239,7 @@ fun LetterGroup(
                                     clipData = ClipData.newPlainText(
                                         "",
                                         // Some hack here: unpack the object details as a string
-                                        "${lx?.text ?: "$"}/${lx?.point}"
+                                        "${lx?.text}/${lx?.point}/${lx?.letterMl}/${lx?.wordMl}"
                                     )
                                 )
                             )

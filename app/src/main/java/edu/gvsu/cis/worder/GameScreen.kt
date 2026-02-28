@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -39,75 +40,172 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import edu.gvsu.cis.worder.ui.theme.WorderTheme
-
+//import java.time.format.TextStyle
+import androidx.compose.ui.text.TextStyle
+//import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.unit.sp
 @OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
-fun GameScreen(modifier: Modifier = Modifier, viewModel: AppViewModel) {
+fun GameScreen(
+    modifier: Modifier = Modifier,
+    viewModel: AppViewModel
+) {
     val stockLetters by viewModel.sourceLetters.collectAsState()
     val arrangedLetters by viewModel.targetLetters.collectAsState()
+    val currentScore by viewModel.currentScore.collectAsState()
+    val totalScore by viewModel.totalScore.collectAsState()
+    val wordsBuilt by viewModel.wordBuiltSofar.collectAsState()
 
-    Box(
-        contentAlignment = Alignment.Center,
+    Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(top = 24.dp)
+            .padding(top = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
 
-        Button(
-            modifier = Modifier.align(Alignment.TopCenter),
-            onClick = {
-                viewModel.selectRandomLetters()
-            },
+        // 🔹 Buttons Row
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("New Game")
+            Button(
+                onClick = {
+                    viewModel.selectRandomLetters()
+                }
+            ) {
+                Text("New Game")
+            }
+
+            Button(
+                onClick = {
+                    viewModel.reshuffle()
+                }
+            ) {
+                Text("Reshuffle")
+            }
+
+            Button(
+                onClick = {
+                    viewModel.addWord()
+                }
+            ) {
+                Text("Submit Word")
+            }
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("Current word points: $currentScore")
+            Text("Total points: $totalScore")
+            Text("Words recorded: ${wordsBuilt.size}")
         }
 
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+        // Game Area
+        Text("Center Box")
+
+        LetterGroup(
+            letters = arrangedLetters,
+            groupId = "Top"
         ) {
-            LetterGroup(letters = arrangedLetters, groupId = "Top") {
-                viewModel.rearrangeLetters(Origin.CenterBox, it.filterNotNull() )
-            }
-            LetterGroup(letters = stockLetters, groupId = "Bottom") {
-                println("Bottom box rearrange $it")
-                viewModel.rearrangeLetters(Origin.Stock, it.filterNotNull())
-            }
+            viewModel.rearrangeLetters(
+                Origin.CenterBox,
+                it.filterNotNull()
+            )
+        }
+
+        Text("Stock")
+
+        LetterGroup(
+            letters = stockLetters,
+            groupId = "Bottom"
+        ) {
+            viewModel.rearrangeLetters(
+                Origin.Stock,
+                it.filterNotNull()
+            )
         }
     }
 }
 
 @Composable
-fun BigLetter(modifier: Modifier = Modifier, letter: Char?, cellSize: Dp = 48.dp) {
+fun BigLetter(
+    modifier: Modifier = Modifier,
+    letter: Letter?,
+    cellSize: Dp = 48.dp
+) {
+    val cornerPad = cellSize * 0.08f
+    val cornerFont = (cellSize.value * 0.18f).sp
+    val mainFont = (cellSize.value * 0.6f).sp
+
     Box(
-        contentAlignment = Alignment.Center,
         modifier = modifier
             .size(cellSize)
-            .border(width = 1.dp, color = Color.Black, shape = RoundedCornerShape(8.dp))
+            .border(1.dp, Color.Black, RoundedCornerShape(8.dp))
             .background(
                 if (letter == null) Color.Transparent else Color.Green,
-                shape = RoundedCornerShape(8.dp)
+                RoundedCornerShape(8.dp)
             )
     ) {
-        Text(
-            letter?.toString() ?: "",
-            fontSize = (cellSize * 0.7f).value.sp,
-            textAlign = TextAlign.Center
-        )
-    }
+        if (letter != null) {
 
+            // Main letter (center)
+            Text(
+                text = letter.text.toString(),
+                fontSize = mainFont,
+                modifier = Modifier.align(Alignment.Center)
+            )
+
+            val cornerTextStyle = TextStyle(
+                fontSize = cornerFont,
+                platformStyle = PlatformTextStyle(includeFontPadding = false)
+            )
+
+            // Word multiplier (top left)
+            if (letter.wordMl > 1) {
+                Text(
+                    text = "${letter.wordMl}W",
+                    style = cornerTextStyle,
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(cornerPad)
+                )
+            }
+
+            // Letter multiplier (top right)
+            if (letter.letterMl > 1) {
+                Text(
+                    text = "${letter.letterMl}L",
+                    style = cornerTextStyle,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(cornerPad)
+                )
+            }
+
+            // Point (bottom right)
+            if (letter.point > 0) {
+                Text(
+                    text = letter.point.toString(),
+                    style = cornerTextStyle,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(cornerPad)
+                )
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun LetterGroup(
-    modifier: Modifier = Modifier, groupId: String,
+    modifier: Modifier = Modifier,
+    groupId: String,
     letters: List<Letter?>,
     onRearranged: (List<Letter?>) -> Unit
 ) {
@@ -142,10 +240,11 @@ fun LetterGroup(
         object : DragAndDropTarget {
             override fun onDrop(event: DragAndDropEvent): Boolean {
                 val ev = event.toAndroidDragEvent()
-                val dropData = ev.clipData.getItemAt(0).text
                 // Decode the string payload (text and point separated by '/')
-                val (text,point) = dropData.split("/")
-                val letterObject = Letter(text.first(),point.toInt())
+                val dropData = ev.clipData.getItemAt(0).text.toString()
+                val (t, p, lml, wml) = dropData.split("/")
+                val letterObject = Letter(t.first(), p.toInt(), lml.toInt(), wml.toInt())
+
                 // Drop the letter to the empty cell
                 if (emptyCellIndex != null) {
                     mutLetters[emptyCellIndex!!] = letterObject
@@ -221,7 +320,7 @@ fun LetterGroup(
                 // Can't use only position as key: reordering won't work correctly
                 // Can't use only character as key: the list may contain duplicate letters
                 itemsIndexed(mutLetters, key = { pos, item -> "$pos-" + (item?.text ?: "#") }) { pos, lx ->
-                    BigLetter(letter = lx?.text, cellSize = letterSize.coerceAtMost(80.dp),
+                    BigLetter(letter = lx, cellSize = letterSize.coerceAtMost(80.dp),
                         modifier = Modifier.dragAndDropSource {
                         detectTapGestures(onLongPress = {
                             startDragIndex = pos
@@ -233,7 +332,7 @@ fun LetterGroup(
                                     clipData = ClipData.newPlainText(
                                         "",
                                         // Some hack here: unpack the object details as a string
-                                        "${lx?.text ?: "$"}/${lx?.point}"
+                                        "${lx?.text}/${lx?.point}/${lx?.letterMl}/${lx?.wordMl}"
                                     )
                                 )
                             )

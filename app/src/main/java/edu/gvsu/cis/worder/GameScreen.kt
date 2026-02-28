@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -39,50 +40,94 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import edu.gvsu.cis.worder.ui.theme.WorderTheme
-
+//import java.time.format.TextStyle
+import androidx.compose.ui.text.TextStyle
+//import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.unit.sp
 @OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
-fun GameScreen(modifier: Modifier = Modifier, viewModel: AppViewModel) {
+fun GameScreen(
+    modifier: Modifier = Modifier,
+    viewModel: AppViewModel
+) {
     val stockLetters by viewModel.sourceLetters.collectAsState()
     val arrangedLetters by viewModel.targetLetters.collectAsState()
+    val currentScore by viewModel.currentScore.collectAsState()
+    val totalScore by viewModel.totalScore.collectAsState()
+    val wordsBuilt by viewModel.wordBuiltSofar.collectAsState()
 
-    Box(
-        contentAlignment = Alignment.Center,
+    Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(top = 24.dp)
+            .padding(top = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
 
-        Button(
-            modifier = Modifier.align(Alignment.TopCenter),
-            onClick = {
-                viewModel.calculateTotalScore()
-                viewModel.selectRandomLetters()
-            },
+        // 🔹 Buttons Row
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("New Game")
+            Button(
+                onClick = {
+                    viewModel.selectRandomLetters()
+                }
+            ) {
+                Text("New Game")
+            }
+
+            Button(
+                onClick = {
+                    viewModel.reshuffle()
+                }
+            ) {
+                Text("Reshuffle")
+            }
+
+            Button(
+                onClick = {
+                    viewModel.addWord()
+                }
+            ) {
+                Text("Submit Word")
+            }
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("Current word points: $currentScore")
+            Text("Total points: $totalScore")
+            Text("Words recorded: ${wordsBuilt.size}")
         }
 
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+        // Game Area
+        Text("Center Box")
+
+        LetterGroup(
+            letters = arrangedLetters,
+            groupId = "Top"
         ) {
-            Text("Center Box")
-            LetterGroup(letters = arrangedLetters, groupId = "Top") {
-                println("Center box rearrange $it")
-                viewModel.rearrangeLetters(Origin.CenterBox, it.filterNotNull() )
-            }
-            Text("Stock")
-            LetterGroup(letters = stockLetters, groupId = "Bottom") {
-//                println("Bottom box rearrange $it")
-                viewModel.rearrangeLetters(Origin.Stock, it.filterNotNull())
-            }
+            viewModel.rearrangeLetters(
+                Origin.CenterBox,
+                it.filterNotNull()
+            )
+        }
+
+        Text("Stock")
+
+        LetterGroup(
+            letters = stockLetters,
+            groupId = "Bottom"
+        ) {
+            viewModel.rearrangeLetters(
+                Origin.Stock,
+                it.filterNotNull()
+            )
         }
     }
 }
@@ -93,6 +138,10 @@ fun BigLetter(
     letter: Letter?,
     cellSize: Dp = 48.dp
 ) {
+    val cornerPad = cellSize * 0.08f
+    val cornerFont = (cellSize.value * 0.18f).sp
+    val mainFont = (cellSize.value * 0.6f).sp
+
     Box(
         modifier = modifier
             .size(cellSize)
@@ -102,34 +151,28 @@ fun BigLetter(
                 RoundedCornerShape(8.dp)
             )
     ) {
-
-        // Main letter (center)
         if (letter != null) {
+
+            // Main letter (center)
             Text(
                 text = letter.text.toString(),
-                fontSize = (cellSize * 0.6f).value.sp,
+                fontSize = mainFont,
                 modifier = Modifier.align(Alignment.Center)
             )
 
-            // Point (bottom right)
-            if (letter.point > 0) {
-                Text(
-                    text = letter.point.toString(),
-                    fontSize = (cellSize * 0.18f).value.sp,
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(4.dp)
-                )
-            }
+            val cornerTextStyle = TextStyle(
+                fontSize = cornerFont,
+                platformStyle = PlatformTextStyle(includeFontPadding = false)
+            )
 
             // Word multiplier (top left)
             if (letter.wordMl > 1) {
                 Text(
                     text = "${letter.wordMl}W",
-                    fontSize = (cellSize * 0.18f).value.sp,
+                    style = cornerTextStyle,
                     modifier = Modifier
                         .align(Alignment.TopStart)
-                        .padding(4.dp)
+                        .padding(cornerPad)
                 )
             }
 
@@ -137,10 +180,21 @@ fun BigLetter(
             if (letter.letterMl > 1) {
                 Text(
                     text = "${letter.letterMl}L",
-                    fontSize = (cellSize * 0.18f).value.sp,
+                    style = cornerTextStyle,
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(4.dp)
+                        .padding(cornerPad)
+                )
+            }
+
+            // Point (bottom right)
+            if (letter.point > 0) {
+                Text(
+                    text = letter.point.toString(),
+                    style = cornerTextStyle,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(cornerPad)
                 )
             }
         }

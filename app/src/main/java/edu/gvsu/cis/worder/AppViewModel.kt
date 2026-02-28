@@ -1,9 +1,15 @@
 package edu.gvsu.cis.worder
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.map
+import kotlin.collections.map
 
 data class Letter(
     val text: Char = '$',
@@ -42,8 +48,36 @@ class AppViewModel : ViewModel() {
     private val _letterPoint: Map<Char, Int> = ('A'..'Z').associateWith { (1..10).random() }
     private val _sourceLetters = MutableStateFlow(emptyList<Letter?>())
     val sourceLetters = _sourceLetters.asStateFlow()
-    private val _targetLetters = MutableStateFlow(emptyList<Letter?>())
-    val targetLetters = _targetLetters.asStateFlow()
+
+
+    /////////////////////////
+    private val _targetLetters = MutableStateFlow<List<Letter?>>(emptyList())
+    val targetLetters: StateFlow<List<Letter?>> = _targetLetters.asStateFlow()
+
+    val currentWord: StateFlow<String> =
+        targetLetters
+            .map { letters ->
+                letters
+                    .filterNotNull()
+                    .joinToString("") { it.text.toString() }
+                    .uppercase()
+            }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.Eagerly,
+                initialValue = ""
+            )
+
+    val isValidWord: StateFlow<Boolean> =
+        currentWord
+            .map { word -> _dictionary.contains(word) }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.Eagerly,
+                initialValue = false
+            )
+    /////////////////////////
+
 
     private val _currentScore = MutableStateFlow(0)
     val currentScore = _currentScore.asStateFlow()
@@ -53,6 +87,7 @@ class AppViewModel : ViewModel() {
 
     private val _wordBuiltSofar = MutableStateFlow<Map<String, Int>>(emptyMap())
     val wordBuiltSofar = _wordBuiltSofar.asStateFlow()
+
 
     init {
         selectRandomLetters()
@@ -82,33 +117,25 @@ class AppViewModel : ViewModel() {
             }.shuffled()
         }
         _targetLetters.update { emptyList() }
-    }
-    fun rearrangeLetters(group: Origin, arr: List<Letter?>) {
-        when (group) {
-            Origin.Stock -> {
-                _sourceLetters.update {
-                    arr
-                }
-            }
-
-            Origin.CenterBox -> {
-                calculateCurrentScore(arr)
-                _targetLetters.update {
-                    arr
-                }
-            }
-        }
+        _currentScore.value = 0
     }
 
-    fun lettersToWord(letters: List<Letter?>): String {
-        return letters
-            .filterNotNull()
-            .map { it.text }
-            .joinToString(separator = "")
-            .uppercase()
+    // One button to reshuffle the remaining stock letters
+    fun reshuffle() {
+        _sourceLetters.update { it.shuffled() }
     }
 
-    fun addWord(word:String, score: Int) {
+    // One button to record the word and add the score to the current total.
+    fun addWord() {
+        // check if the word is valid
+        // comment out for now
+//        if (!_isValidWord.value) return
+
+        val word = currentWord.value
+//        println("Current word: $word")
+        val score = _currentScore.value
+//        println("Current word score: $score")
+
         _wordBuiltSofar.update { currentMap ->
             if (currentMap.contains(word)) {
                 currentMap
@@ -116,42 +143,53 @@ class AppViewModel : ViewModel() {
                 currentMap + (word to score)
             }
         }
-        println("map : ${_wordBuiltSofar.value}")
+
+        _totalScore.update { it + score }
+//        println("Total score ${_totalScore.value}")
+//        println("map : ${_wordBuiltSofar.value}")
     }
 
-    fun calculateCurrentScore(target: List<Letter?>) {
-        val word = lettersToWord(target)
-        val isValid = _dictionary.contains(word)
-
-//        println("Word : $word")
-//        println("IsValid : $isValid")
-
-        // testing, should be !isValid
-        if (isValid) {
-//            println("Invalid word")
-            return
+    fun rearrangeLetters(group: Origin, arr: List<Letter?>) {
+        when (group) {
+            Origin.Stock -> {
+                _sourceLetters.update {
+                    arr
+                }
+            }
+            Origin.CenterBox -> {
+                _targetLetters.update {
+                    arr
+                }
+                calculateCurrentScore(arr)
+            }
         }
+    }
 
+    // this calculate immediately after rearranging takes place
+    // can not use .Eagerly
+    fun calculateCurrentScore(target: List<Letter?>) {
         val letters = target.filterNotNull()
 
-        var wordMultiplier = 1
+        val word = letters
+            .joinToString("") { it.text.toString() }
+            .uppercase()
+
+        // for checking if the word is valid
+        // there are not many words in dict, so turning this off
+//        if (!_dictionary.contains(word)) {
+//            _currentScore.value = 0
+//            return
+//        }
 
         val letterSum = letters.sumOf { letter ->
-            wordMultiplier *= letter.wordMl
             letter.point * letter.letterMl
         }
 
-        val totalScore = letterSum * wordMultiplier
+        val wordMultiplier = letters.fold(1) { acc, letter ->
+            acc * letter.wordMl
+        }
 
-        addWord(word, totalScore)
-        _currentScore.update { totalScore }
-
-//        println("Current score : ${_currentScore.value}")
-    }
-
-    fun calculateTotalScore () {
-        _totalScore.value += _currentScore.value
-//        println("Total score: ${_totalScore.value}")
+        _currentScore.value = letterSum * wordMultiplier
     }
 
 }
